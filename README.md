@@ -26,7 +26,7 @@ Creating the deployment
 To deploy CTFd, use ``oc new-app``, passing it the URL to the template.
 
 ```
-oc new-app https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/templates/all-in-one-deployment.json
+oc new-app https://github.com/psehgaft/ctfd-quickstart/blob/master/templates/all-in-one-deployment.json
 ```
 
 To determine the public URL for the application run ``oc get routes``.
