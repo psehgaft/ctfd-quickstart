@@ -34,7 +34,7 @@ To determine the public URL for the application run ``oc get routes``.
 The default name for the deployed application is ``ctfd``. If you want to override the name of the deployed application, pass the ``APPLICATION_NAME`` parameter for the template.
 
 ```
-oc new-app https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/templates/all-in-one-deployment.json --param APPLICATION_NAME=ctfd
+oc new-app https://github.com/psehgaft/ctfd-quickstart/blob/master/templates/all-in-one-deployment.json --param APPLICATION_NAME=ctfd
 ```
 
 The Git repository URL and Git reference can be overridden using the ``GIT_REPOSITORY_URL`` and ``GIT_REFERENCE`` template parameters.
