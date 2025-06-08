@@ -6,8 +6,9 @@ This repository contains build/run scripts and templates for deploying the CTFd 
 The original repository for CTFd can be found at:
 
 * https://github.com/CTFd/CTFd
+* this fork - https://github.com/psehgaft/CTFd
 
-This repository is not a fork, nor does it make changes to the original source code of the CTFd application. The building of CTFd for OpenShift works by injecting into the Source-to-Image (S2I) build process, custom ``assemble`` and ``run`` scripts from this repository.
+This repository is a fork, does it make changes to the original source code of the CTFd application. The building of CTFd for OpenShift works by injecting into the Source-to-Image (S2I) build process, custom ``assemble`` and ``run`` scripts from this repository.
 
 The container images for CTFd available on Docker Hub are not used as they require the image be run as ``root``.
 
@@ -26,7 +27,7 @@ Creating the deployment
 To deploy CTFd, use ``oc new-app``, passing it the URL to the template.
 
 ```
-oc new-app https://raw.githubusercontent.com/psehgaft/ctfd-quickstart/master/templates/all-in-one-deployment.yml
+oc new-app https://raw.githubusercontent.com/psehgaft/ctfd-quickstart/refs/heads/master/templates/all-in-one-deployment.json
 ```
 
 To determine the public URL for the application run ``oc get routes``.
@@ -34,7 +35,7 @@ To determine the public URL for the application run ``oc get routes``.
 The default name for the deployed application is ``ctfd``. If you want to override the name of the deployed application, pass the ``APPLICATION_NAME`` parameter for the template.
 
 ```
-oc new-app https://raw.githubusercontent.com/psehgaft/ctfd-quickstart/master/templates/all-in-one-deployment.yml --param APPLICATION_NAME=ctfd
+oc new-app https://raw.githubusercontent.com/psehgaft/ctfd-quickstart/refs/heads/master/templates/all-in-one-deployment.json --param APPLICATION_NAME=ctfd
 ```
 
 The Git repository URL and Git reference can be overridden using the ``GIT_REPOSITORY_URL`` and ``GIT_REFERENCE`` template parameters.
