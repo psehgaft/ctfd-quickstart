@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: ctfd-postgres-pvc
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: ctfd-redis-pvc
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 512Mi
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: ctfd-postgres
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: ctfd-postgres
+      template:
+        metadata:
+          labels:
+            app: ctfd-postgres
+        spec:
+          containers:
+            - name: postgres
+              image: postgres:14-alpine
+              env:
+                - name: POSTGRES_DB
+                  value: ctfd
+                - name: POSTGRES_USER
+                  value: ctfd
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: ctfd-db-secret
+                      key: password
+              ports:
+                - containerPort: 5432
+              volumeMounts:
+                - mountPath: /var/lib/postgresql/data
+                  name: ctfd-postgres-data
+          volumes:
+            - name: ctfd-postgres-data
+              persistentVolumeClaim:
+                claimName: ctfd-postgres-pvc
+
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: ctfd-db-secret
+    type: Opaque
+    stringData:
+      password: changeme123
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: ctfd-redis
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: ctfd-redis
+      template:
+        metadata:
+          labels:
+            app: ctfd-redis
+        spec:
+          containers:
+            - name: redis
+              image: redis:6-alpine
+              ports:
+                - containerPort: 6379
+              volumeMounts:
+                - name: redis-data
+                  mountPath: /data
+              readinessProbe:
+                tcpSocket:
+                  port: 6379
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              livenessProbe:
+                tcpSocket:
+                  port: 6379
+                initialDelaySeconds: 15
+                periodSeconds: 20
+          volumes:
+            - name: redis-data
+              persistentVolumeClaim:
+                claimName: ctfd-redis-pvc
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: ctfd
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: ctfd
+      template:
+        metadata:
+          labels:
+            app: ctfd
+        spec:
+          containers:
+            - name: ctfd
+              image: ctfd/ctfd:latest
+              env:
+                - name: DATABASE_URL
+                  value: postgresql://ctfd:changeme123@ctfd-postgres:5432/ctfd
+                - name: REDIS_URL
+                  value: redis://ctfd-redis:6379/0
+              ports:
+                - containerPort: 8000
+              readinessProbe:
+                httpGet:
+                  path: /health
+                  port: 8000
+                initialDelaySeconds: 15
+                periodSeconds: 20
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: 8000
+                initialDelaySeconds: 30
+                periodSeconds: 30
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: ctfd-postgres
+    spec:
+      ports:
+        - port: 5432
+          targetPort: 5432
+      selector:
+        app: ctfd-postgres
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: ctfd-redis
+    spec:
+      ports:
+        - port: 6379
+          targetPort: 6379
+      selector:
+        app: ctfd-redis
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: ctfd
+      annotations:
+        service.beta.openshift.io/serving-cert-secret-name: ctfd-tls
+    spec:
+      ports:
+        - port: 80
+          targetPort: 8000
+      selector:
+        app: ctfd
+      type: ClusterIP
+
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      name: ctfd
+    spec:
+      to:
+        kind: Service
+        name: ctfd
+      port:
+        targetPort: 80
+      tls:
+        termination: edge
