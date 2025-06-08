@@ -1,0 +1,205 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ctfd-db-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctfd-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctfd-db
+  template:
+    metadata:
+      labels:
+        app: ctfd-db
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:10.4.12
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ctfd-db-secret
+                  key: root-password
+            - name: MYSQL_DATABASE
+              value: ctfd
+            - name: MYSQL_USER
+              value: ctfd
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ctfd-db-secret
+                  key: user-password
+          command:
+            - mysqld
+            - "--character-set-server=utf8mb4"
+            - "--collation-server=utf8mb4_unicode_ci"
+            - "--wait_timeout=28800"
+            - "--log-warnings=0"
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: db-storage
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: ctfd-db-pvc
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ctfd-db-secret
+type: Opaque
+stringData:
+  root-password: ctfdrootpw
+  user-password: ctfdpw
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctfd-db
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: ctfd-db
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ctfd-redis-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctfd-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctfd-redis
+  template:
+    metadata:
+      labels:
+        app: ctfd-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:6-alpine
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-storage
+              mountPath: /data
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 10
+      volumes:
+        - name: redis-storage
+          persistentVolumeClaim:
+            claimName: ctfd-redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctfd-redis
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: ctfd-redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctfd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctfd
+  template:
+    metadata:
+      labels:
+        app: ctfd
+    spec:
+      containers:
+        - name: ctfd
+          image: ctfd/ctfd:latest
+          env:
+            - name: DATABASE_URL
+              value: mysql+pymysql://ctfd:ctfdpw@ctfd-db:3306/ctfd
+            - name: REDIS_URL
+              value: redis://ctfd-redis:6379/0
+            - name: SECRET_KEY
+              value: CHANGEME_RANDOM_SECRET
+            - name: UPLOAD_FOLDER
+              value: /var/uploads
+            - name: WORKERS
+              value: "4"
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+          volumeMounts:
+            - name: uploads
+              mountPath: /var/uploads
+      volumes:
+        - name: uploads
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctfd
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: ctfd-tls
+spec:
+  ports:
+    - port: 80
+      targetPort: 8000
+  selector:
+    app: ctfd
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ctfd
+spec:
+  to:
+    kind: Service
+    name: ctfd
+  port:
+    targetPort: 80
+  tls:
+    termination: edge
