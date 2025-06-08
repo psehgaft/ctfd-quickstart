@@ -12,7 +12,7 @@
         },
         {
             "name": "GIT_REPOSITORY_URL",
-            "value": "https://github.com/CTFd/CTFd",
+            "value": "https://github.com/psehgaft/CTFd",
             "required": true
         },
         {
@@ -110,7 +110,7 @@
                             "namespace": "openshift",
                             "name": "python:3.6"
                         },
-                        "scripts": "https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/s2i/bin"
+                        "scripts": "https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/s2i/bin/run"
                     }
                 },
                 "output": {
