@@ -120,7 +120,7 @@
                             "namespace": "openshift",
                             "name": "python:3.6"
                         },
-                        "scripts": "https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/s2i/bin"
+                        "scripts": "https://raw.githubusercontent.com/psehgaft/ctfd-quickstart/master/s2i/bin"
                     }
                 },
                 "output": {
